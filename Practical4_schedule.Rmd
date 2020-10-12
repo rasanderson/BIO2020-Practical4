@@ -1,0 +1,169 @@
+---
+title: 'Practical 4: Generalised Linear Models'
+author: "Bio2020"
+output: word_document
+---
+## Aim
+
+The main aims of this practical are to learn more on the use of generalised linear models (GLMs), and interpretation of their output, specifically with regard to:  
+
+- Use of GLMs with count response data
+- Use of GLMs with binary response data
+
+## Setting up for the practical  
+
+First, go to Canvas and download the **lichen.csv** and **sppcount.csv** data sets and save them to your Bio2020 directory data folder.  
+
+Now navigate to your Bio2020 folder and open up your existing project for this module in your directory and load it into R as you have done in previous practicals. Create a new R script and save it to your current working directory (the location of your Bio2020 project) as Practical_4. 
+
+#### Loading Packages  
+
+Load the **mosaic**, **ggformula** and **bio2020** packages as you have done in previous sessions.    
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+library(mosaic)
+library(ggformula)
+library(bio2020)
+
+```
+
+#### Loading Data  
+
+Now load in the two .csv files you downloaded at the very beginning of the practical. If the data is not in a folder called data, you will have to change the file path to match where your data is stored. 
+```{r echo=TRUE,  message=FALSE, warning=FALSE}
+lichen_dat <- read.csv("Data/lichen.csv")
+sppcount <- read.csv("Data/sppcount.csv")
+
+```
+
+## Introduction  
+
+GLMs are a useful tool for determining if there is a relationship between a **response variable** and any **covariates**. A typical GLM in R has this format: 
+
+<div align="center"> `glm(response ~ covariates, data = data, family = family)` </div>
+
+So for example, if we had a series of penguin weights plus the time they spend at sea feeding, and we wanted to see if there was a relationship between their weight and the time they spend foraging the GLM might look something like this: 
+
+<div align="center"> `glm(penquine_weight ~ time_at_sea, data = penguin_data, family = gaussian)` </div>
+
+Today we are going to be using species count data with air pollution and lichen data with soil calcium and air pollution levels.  
+
+## GLMs with Species Counts and Pollution
+
+#### Summary Statistics 
+
+It is always good to start by observing the data and running some summary statistics. 
+
+```{r echo=TRUE, include=TRUE}
+summary(sppcount)
+
+sd(~species, data = sppcount)
+
+sd(~pollution, data = sppcount)
+
+#Visualise
+
+gf_point(pollution~species, data = sppcount) %>% 
+  gf_lm() %>% 
+  gf_theme(theme_minimal())
+
+```
+
+The plot above shows a clear link between species abundance and the amount of pollution present but visualising it is not enough we need to back up our hypothesis with statistical analysis.  
+
+It is also a good habit to examine the data structurally as well as statistically to see how variables are laid out and what format they are in. The `summary()` command outlines the data into very basic statistics such as **mean**, **median**, **1st and 3rd quartiles** and **min and max**. The `str()` command displays what type of variables there (ie numeric, character or factor) and how they are stored (ie vector or data frame). In the following example the data is in two different categories **num** which is the class used for nonwhole nubmers and **int** which is teh class used for interger or whole numbers.  
+```{r echo=TRUE, include=TRUE}
+str(sppcount)
+
+```
+
+#### GLMs
+
+As your response data (species) are count variables, where no fractional values are possible, we will use a "Poisson"" error model in this GLM.  
+
+```{r echo=TRUE, include=TRUE}
+spp_glm <- glm(species ~ pollution, data = sppcount, family = poisson)
+summary(spp_glm)
+
+```
+
+So now what does this all mean. 
+
+- The **deviance residuals** are the deviance of each data point. The model calculates the deviation of the data point and the value left is your residuals.
+- The **coefficients** are your **covariate** variables (ie pollution). You may notice that there are two coefficients when our model only specified one. The intercept is the predicted values when your independent variable (species) is zero. The **estimate** is the estimated log value in the change of your response variable (pollution) if your covariate (pollution) were one unit higher. The estimate for the intercept is the estimate log value of species if pollution were 0. The **std error** is the variation around the mean, and the **z value** is the `estimate/std error`. Lastly, the **p value** is the measure of significance. The lower the p value, the more significant the result. The `***` proceeding the p value is a visual indicator of significance, and the key for those significant codes is just below the coefficients.
+- The **residual deviance** is a measure of how good your model is. If your residual deviance value is close to zero, then the model is oversaturated and not very good. 
+- The **AIC** value is used when comparing two similar models, the lower the AIC, the better the model.
+- Finally, the **Fisher score** is a measure of how many iterations of the model R ran looking at different estimates before displaying the results. 
+
+From the results of the GLM, we can see that our original theory gathered from the plot was correct. There is a distinct significant relationship between species count and the amount of pollution present in a system. the fact that the **p value** is <0.001 means that the relationship is highly significant. The fact that both the **z value** and **estimate** are negative tells us that the relationship between the response variable and covariate is a negative one or in this case that as pollution levels rise species count will fall. 
+
+## GLMs with Binary Lichen Data
+
+Your experiment may produce categorical response data, e.g. male or female, wilted or turgid, infected or uninfected, dead or alive. Note that a response such as simply 'dead' or 'alive' differs from a response where you have counts of the numbers of dead or alive out of your original sample, which are analysed as proportion data in the previous example. Here there is in effect less information available for you as an experimenter, and so you have to handle slightly coarser, categorical information.
+
+The method used by R to handle such a response is to treat the categories as 0 or 1, and assume they are still from a binomial sample, but with a sample size of only 1.
+In this example, you are testing the effect of atmospheric pollution on the presence or absence of lichen's growth on trees. Lichens have been found to be very sensitive biological indicators of atmospheric pollution. As lichen growth can be affected by the tree bark, particularly calcium content, this was also measured. Your response is a 1 or 0, where 1 indicates lichen are present and 0 lichen absent. 
+
+#### Summary Statistics
+
+Start with some visualisation and summary statistics. What do the plots bellow tell you about lichen ecology? Can you form some initial assumptions based on what they show?  
+
+
+
+
+
+
+
+
+```{r echo=TRUE, include=TRUE}
+summary(lichen_dat)
+str(lichen_dat)
+
+sd(~airpoll, data = lichen_dat)
+
+sd(~airpoll, data = lichen_dat)
+
+#Visualise
+gf_violin(calcium~as.factor(lichen), data = lichen_dat, alpha = 0.3, fill = ~as.character(lichen)) %>% 
+  gf_sina(calcium~as.factor(lichen)) %>% 
+  gf_labs(x = "Lichen", y = "Calcium", title = "Lichen and Calcium") %>% 
+  gf_theme(theme_minimal()) %>% 
+  gf_theme(legend.title = element_blank())
+
+gf_violin(airpoll~as.factor(lichen), data = lichen_dat, alpha = 0.3, fill = ~as.character(lichen)) %>% 
+  gf_sina(airpoll~as.factor(lichen)) %>% 
+  gf_labs(x = "Lichen", y = "Air Pollution", title = "Lichen and Pollution") %>% 
+  gf_theme(theme_minimal()) %>% 
+  gf_theme(legend.title = element_blank())
+
+```
+
+#### GLMs
+
+When a GLM contains a `:` in the covariates such as this `glm(response ~ covariate1 + covariate2 + covariate1:covariate2, data = data, family = family)` it means that the model will test to see if an interaction between the two variables is having a significant effect. If the data you are modelling contains more the just two possible covariates, you can use a `*` to test for all possible interactions such as this `glm(response ~ covariate1*covariate2*covariate3, data = data, family = family)`. This results in all covariate being examined individually but also as groups such as this (notice the three way interaction):
+
+|   -covariate1 results  
+|   -covariate2 results   
+|   -covariate3 results  
+|   -covariate1:covariate2 results  
+|   -covariate1:covariate3 results  
+|   -covariate2:covariate3 results  
+|   -covariate1:covariate2:covariate3 results  
+
+We will begin by running a full model including, the interaction terms; however, these can be removed later if not necessary. Notice that the family for this model has been changed as we now have a binary response variable. 
+
+```{r echo=TRUE, include=TRUE}
+
+lichen_glm1 <- glm(lichen ~ airpoll + calcium + airpoll:calcium, data = lichen_dat, family = binomial)
+summary(lichen_glm1)
+
+```
+
+If the model is **over-fitted or saturated**, it would not be a valid model as it would fit the data perfectly. You can easily see if this is the case by looking at the summary. If there are zero residual degrees of freedom, and the residual deviance is also zero (on your PC the zero may be expressed in exponential format due to rounding), then the model is oversaturated and not a good fit. The model is not overdispersed, but none of the predictors are significant. Next fit a simpler model, with only main effects and without the interaction term, and compare the two. 
+
+```{r echo=TRUE, include=TRUE}
+lichen_glm2 <- glm(lichen ~ airpoll + calcium, data = lichen_dat, family = binomial)
+summary(lichen_glm2)
+
+```
+
+Notice now that the main covariates are significant after removing the interaction term. Also, the **AIC** value is lower in the second model meaning this model is an improvement over the more complex one we ran earlier. What do the results of this simpler model tell you about lichen and its relationship with calcium and air pollution?
