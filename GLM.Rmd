@@ -7,8 +7,8 @@ runtime: shiny_prerendered
 ```{r setup, include=FALSE}
 library(learnr)
 library(mosaic)
-sppcount <- read.csv("www/sppcount.csv")
-lichens_dat  <- read.csv("www/lichen.csv")
+sppcount <- read.csv("Data/sppcount.csv")
+lichens_dat  <- read.csv("Data/lichen.csv")
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
