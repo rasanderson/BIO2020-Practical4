@@ -3,25 +3,41 @@ title: 'Practical 4: Generalised Linear Models'
 author: "Bio2020"
 output: word_document
 ---
-## Aim
+# Introduction
+Generalised linear models (GLMs) are, as their name suggests, an extension of the standard linear model. They still work to the same framework of a response variable, and one or more explanatory variables. The difference is that they can be much more flexible in the type of response variable you are working with. In a conventional linear model it is assumed that your response variable can take any value, e.g. 4.65, 1.98, -4.32, 65.0, 9241.2 etc. These represent a "normal" distribution or bell-shaped curve; you will also see a normal distribution called a "Gaussian" distribution, after the German mathematician Carl Gauss who first described it. Of course in "real" biological data, some of these values would not make any sense. You might have:
 
-The main aims of this practical are to learn more on the use of generalised linear models (GLMs), and interpretation of their output, specifically with regard to:  
+* **Binary data** Presence / Absence, Dead / Alive, Diseased / Healthy, Mutant / Wild Type etc.
+* **Count data** Number of birds in different gardens, counts of pollinators visiting flowers, number of muscle reflexes in response to electical stimuli etc.
+* **Positive numbers only** Heights of oak trees, weights of brown rats, yield of crops etc. These numbers might have decimal places, but they cannot be negative
+* **Proportion or percentages** These are "bounded" numbers, between 0 and 1.0, or 0 and 100 respectively.
 
-- Use of GLMs with count response data
-- Use of GLMs with binary response data
+If you use a conventional linear model with these types of data, when you check the model assumptions, especially via a QQ plot, you may observe distortions, suggesting the linear model is not valid. You can sometimes transform your data before analysis by a linear model, for example take the `log(number_of_birds + 1)` as a response variable (we include the `+ 1` as it is not possible to take a logarithm of zero). However, it is usually better to use a generalised linear model from the outset.
+
+A linear model works best with normal (Gaussian) data, but a GLM can be extended to a wide range of data types, including all four described above. To remind yourself of the underlying theory of GLMs go to [This Interactive Website](https://naturalandenvironmentalscience.shinyapps.io/generalised_linear_models/) and we will begin by using some of the examples from that website.
+
+The overall aim of this practical is to help you have a better understanding of GLMs, how to set them up in R/RStudio, and learn how to interpret their outputs. Specific objectives of Practical 4 are:
+
+1. Use of GLMs with counts (whole number response data)
+2. Use of GLMs with binary responses (presence / absence, dead / alive etc.)
+3. Explore these concepts with new datasets
+4. Consider lognormal response data (response positive numbers, e.g. weight, height)
 
 ## Setting up for the practical  
 
-First, go to Canvas and download the **lichen.csv** and **sppcount.csv** data sets and save them to your Bio2020 directory data folder.  
+First, go to Canvas and download the **lichen.csv** and **sppcount.csv** data sets and save them to your **Data** folder in the **BIO2020** folder where you have your R project stored.  
 
-Now navigate to your Bio2020 folder and open up your existing project for this module in your directory and load it into R as you have done in previous practicals. Create a new R script and save it to your current working directory (the location of your Bio2020 project) as Practical_4. 
+Second, start RStudio, and click on **File -> Recent Projects** and select the BIO2020 project.
 
-#### Loading Packages  
+Finally, create a new R script by clicking on **File -> New File -> R Script**. Save this file into your BIO2020 folder, calling it _**Practical_4.R**_ **Note** If your PC/MacBook is configured so that the full filenames are not displayed, which is often the default, then simply call your new script **_Practical_4_** when prompted.
 
-Load the **mosaic**, **ggformula** and **bio2020** packages as you have done in previous sessions.    
+## Initial lines in your script
+
+As usual, begin your script with a useful comment, and then load the `bio2020` package. If you have not managed to install it, please load the `mosaic` package.
+
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
-library(mosaic)
-library(ggformula)
+# Practical 4. Exploration of data using generalised linear models
+
+# Load up essential libraries before beginning
 library(bio2020)
 
 ```
@@ -31,38 +47,29 @@ library(bio2020)
 Now load in the two .csv files you downloaded at the very beginning of the practical. If the data is not in a folder called data, you will have to change the file path to match where your data is stored. 
 ```{r echo=TRUE,  message=FALSE, warning=FALSE}
 lichen_dat <- read.csv("Data/lichen.csv")
-sppcount <- read.csv("Data/sppcount.csv")
+sppcount_dat <- read.csv("Data/sppcount.csv")
 
 ```
 
-## Introduction  
 
-GLMs are a useful tool for determining if there is a relationship between a **response variable** and any **covariates**. A typical GLM in R has this format: 
-
-<div align="center"> `glm(response ~ covariates, data = data, family = family)` </div>
-
-So for example, if we had a series of penguin weights plus the time they spend at sea feeding, and we wanted to see if there was a relationship between their weight and the time they spend foraging the GLM might look something like this: 
-
-<div align="center"> `glm(penquine_weight ~ time_at_sea, data = penguin_data, family = gaussian)` </div>
-
-Today we are going to be using species count data with air pollution and lichen data with soil calcium and air pollution levels.  
-
-## GLMs with Species Counts and Pollution
+# 1. GLMs with counts data
+## 1.1 Counts of numbers of aquatic invertebrate species
+Aquatic invertebrates provide very useful bioindicators of river systems. A pollution event might be short-lived, and pollutants in the water only detectable for a few days after a spillage. However the effects on the aquatic invertebrates can be detectable for days, weeks or months. They are used by the UK's Environment Agency, Defra, Scottish, Welsh and NI governments to assess aquatic pollution through a system known as RIVPACS [see their website here for more details](https://www.ceh.ac.uk/services/rivpacs-reference-database).
 
 #### Summary Statistics 
 
 It is always good to start by observing the data and running some summary statistics. 
 
 ```{r echo=TRUE, include=TRUE}
-summary(sppcount)
+summary(sppcount_dat)
 
-sd(~species, data = sppcount)
+sd(~species, data = sppcount_dat)
 
-sd(~pollution, data = sppcount)
+sd(~pollution, data = sppcount_dat)
 
 #Visualise
 
-gf_point(pollution~species, data = sppcount) %>% 
+gf_point(pollution~species, data = sppcount_dat) %>% 
   gf_lm() %>% 
   gf_theme(theme_minimal())
 
@@ -72,7 +79,7 @@ The plot above shows a clear link between species abundance and the amount of po
 
 It is also a good habit to examine the data structurally as well as statistically to see how variables are laid out and what format they are in. The `summary()` command outlines the data into very basic statistics such as **mean**, **median**, **1st and 3rd quartiles** and **min and max**. The `str()` command displays what type of variables there (ie numeric, character or factor) and how they are stored (ie vector or data frame). In the following example the data is in two different categories **num** which is the class used for nonwhole nubmers and **int** which is teh class used for interger or whole numbers.  
 ```{r echo=TRUE, include=TRUE}
-str(sppcount)
+str(sppcount_dat)
 
 ```
 
@@ -81,7 +88,7 @@ str(sppcount)
 As your response data (species) are count variables, where no fractional values are possible, we will use a "Poisson"" error model in this GLM.  
 
 ```{r echo=TRUE, include=TRUE}
-spp_glm <- glm(species ~ pollution, data = sppcount, family = poisson)
+spp_glm <- glm(species ~ pollution, data = sppcount_dat, family = poisson)
 summary(spp_glm)
 
 ```
