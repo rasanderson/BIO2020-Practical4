@@ -219,46 +219,95 @@ gf_point(species ~ pollution, data=sppcount_dat) %>%
 
 
 
-## GLMs with Binary Lichen Data
+## 2. GLMs with Binary Data
+Your experiment may produce categorical response data, e.g. male or female, wilted or turgid, infected or uninfected, dead or alive. Note that a response such as simply 'dead' or 'alive' differs from a response where you have counts of the numbers of dead or alive out of your original sample. So binary data can have two slightly different forms:
 
-Your experiment may produce categorical response data, e.g. male or female, wilted or turgid, infected or uninfected, dead or alive. Note that a response such as simply 'dead' or 'alive' differs from a response where you have counts of the numbers of dead or alive out of your original sample, which are analysed as proportion data in the previous example. Here there is in effect less information available for you as an experimenter, and so you have to handle slightly coarser, categorical information.
+* Simple presence / absence; dead / alive; 0 / 1 data (binary response)
+* Information about sample size. e.g. number of eggs that hatch, out of egg clutches that vary slightly in their size between nests.
 
-The method used by R to handle such a response is to treat the categories as 0 or 1, and assume they are still from a binomial sample, but with a sample size of only 1.
-In this example, you are testing the effect of atmospheric pollution on the presence or absence of lichen's growth on trees. Lichens have been found to be very sensitive biological indicators of atmospheric pollution. As lichen growth can be affected by the tree bark, particularly calcium content, this was also measured. Your response is a 1 or 0, where 1 indicates lichen are present and 0 lichen absent. 
+The latter has more information (and is proportion data) so can be analysed slightly differently, but both use the **binomial distribution**, see [this page of the Interactive website](https://naturalandenvironmentalscience.shinyapps.io/generalised_linear_models/#section-poisson-and-binomial-distributions). In the simple binary response the sample size, shown as "Size of each trial" on the interactive graph on the website, is 1. In the second type of scenario, the sample size would vary depending on for example the size of each egg clutch in different nests.
 
-#### Summary Statistics
+In this practical we will focus on the simpler type of data, where you just have a binary response. We will use the data `lichen_dat` that you read into R at the start of this practical. In this example, you are testing the effect of atmospheric pollution on the presence or absence of lichen on trees. Lichens have been found to be very sensitive biological indicators of atmospheric pollution. As lichen presence can be affected by the tree bark, particularly calcium content, this was also measured. Your response is a 1 or 0, where 1 indicates lichen are present and 0 lichen absent. 
+
+## 2.1 Summary statistics and visualisation of lichen data
 
 Start with some visualisation and summary statistics. What do the plots bellow tell you about lichen ecology? Can you form some initial assumptions based on what they show?  
-
-
-
-
-
-
 
 
 ```{r echo=TRUE, include=TRUE}
 summary(lichen_dat)
 str(lichen_dat)
+```
 
-sd(~airpoll, data = lichen_dat)
+Before we continue, notice that calcium and air pollution are continuous variables, indicated by `num` in the structure of the data. However `lichen` is showing as a `int` or whole-number integer, and the summary is giving a mean value of 0.58 for the lichens. This is a little misleading, as really the lichens are a categorical binary response. We can force R to recognise this by using the `as.factor()` function. Remember we use the `$` symbol to allow us to refer to a single column:
 
-sd(~airpoll, data = lichen_dat)
+```{r}
+lichen_dat$lichen_fct <- as.factor(lichen_dat$lichen)
+summary(lichen_dat)
+str(lichen_dat)
+```
 
-#Visualise
-gf_violin(calcium~as.factor(lichen), data = lichen_dat, alpha = 0.3, fill = ~as.character(lichen)) %>% 
-  gf_sina(calcium~as.factor(lichen)) %>% 
+You can see that the `summary` function has a new variable called `lichen_fct` which will be more convenient for some plots. Let's begin with a scatter-plot of the observed points against the two explanatory variables:
+
+```{r}
+# This uses the multi_plot() function from bio2020 to plot them side-by-side
+# If you do not have bio2020 available, do not assign them to plt1 or plt2, but
+# simply run the gf_point() functions to display the graphs in the plot window
+lichen_plt1 <- gf_point(lichen ~ calcium, data=lichen_dat) 
+lichen_plt2 <- gf_point(lichen ~ airpoll, data=lichen_dat)
+multi_plot(lichen_plt1, lichen_plt2, cols=2)
+```
+
+The problem with these two plots is whilst you can see that there appears to be more lichens when at higher calcium and lower air pollution, the plots are actually of limited value for exploratory data visualisation. Boxplots or violinplots would be more useful. Of course, by default they place the categorical explanatory variable on the horizontal axis, and the continuous response variable on the vertical axis. We can get round this problem by flipping our boxplots or violin plots through 90-degrees, so that the lichens still appear on the vertical axis, as we would expect for a response variable. We can do this with the `coord_flip()` option to `gf_refine()`. Both boxplots and violinplots expect categorical variables (factors) so we will use `lichen_fct` in their call.
+
+Let's create a simple boxplot first to show the idea. As usual, build it up one line at a time:
+
+```{r}
+gf_boxplot(calcium ~ lichen_fct, data=lichen_dat) %>% 
+  gf_refine(coord_flip())  # In reality, lichen is response, calcium the explanatory, so flip
+```
+
+To show you the level of information that can be displayed this way, including the original data points, let's create two violinplots. I've added `gf_theme(theme_classic())` to change the overall appearence. You don't really need a separate legend for this plot, as it is fairly obvious what the two groups are, so `legend.position="none"` has been included. All these polishes to the graph are entirely optional. All you really need are the first two lines `gf_violin()` and `gf_refine(coord_flip())`.
+
+```{r, eval=FALSE}
+gf_violin(calcium ~lichen_fct, data = lichen_dat, alpha = 0.3, fill = ~lichen_fct) %>% 
+  gf_refine(coord_flip())  %>% 
+  gf_sina() %>% 
   gf_labs(x = "Lichen", y = "Calcium", title = "Lichen and Calcium") %>% 
-  gf_theme(theme_minimal()) %>% 
-  gf_theme(legend.title = element_blank())
+  gf_theme(theme_classic()) %>% 
+  gf_theme(legend.position="none") 
 
-gf_violin(airpoll~as.factor(lichen), data = lichen_dat, alpha = 0.3, fill = ~as.character(lichen)) %>% 
-  gf_sina(airpoll~as.factor(lichen)) %>% 
+gf_violin(airpoll~lichen_fct, data = lichen_dat, alpha = 0.3, fill = ~lichen_fct) %>% 
+  gf_refine(coord_flip())  %>% 
+  gf_sina() %>% 
   gf_labs(x = "Lichen", y = "Air Pollution", title = "Lichen and Pollution") %>% 
-  gf_theme(theme_minimal()) %>% 
-  gf_theme(legend.title = element_blank())
+  gf_theme(theme_classic()) %>% 
+  gf_theme(legend.position = "none")
 
 ```
+
+Once you have created the plots, try storing them in `lichen_plt3` and `lichen_plt4` objects, and display them side-by-side using `multi_plot()` (requires `bio2020` package):
+
+```{r, echo=FALSE}
+p3 <- gf_violin(calcium ~lichen_fct, data = lichen_dat, alpha = 0.3, fill = ~lichen_fct) %>% 
+  gf_refine(coord_flip())  %>% 
+  gf_sina() %>% 
+  gf_labs(x = "Lichen", y = "Calcium", title = "Lichen and Calcium") %>% 
+  gf_theme(theme_classic()) %>% 
+  gf_theme(legend.position="none") 
+
+p4 <- gf_violin(airpoll~lichen_fct, data = lichen_dat, alpha = 0.3, fill = ~lichen_fct) %>% 
+  gf_refine(coord_flip())  %>% 
+  gf_sina() %>% 
+  gf_labs(x = "Lichen", y = "Air Pollution", title = "Lichen and Pollution") %>% 
+  gf_theme(theme_classic()) %>% 
+  gf_theme(legend.position = "none")
+
+multi_plot(p3, p4, cols=2)
+
+```
+
+Displaying your data this way gives you a much better insight into the relationships between the response variable of lichen, and explanatory of air pollution or calcium, whilst still adhering to the convention of placing your **response on the vertical** axis, and the **explanatory on the horizontal** axis.
 
 #### GLMs
 
