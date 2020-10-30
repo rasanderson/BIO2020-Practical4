@@ -42,13 +42,12 @@ library(bio2020)
 
 ```
 
-#### Loading Data  
+#### Importing data from .csv files into R 
+Now load in the two .csv files you downloaded from  Canvas. `lichen.csv` and `sppcount.csv` at the very beginning of the practical. **Note**: Remember to move the two files into your **`Data`** folder before using `read.csv()` to import them into R.
 
-Now load in the two .csv files you downloaded at the very beginning of the practical. If the data is not in a folder called data, you will have to change the file path to match where your data is stored. 
 ```{r echo=TRUE,  message=FALSE, warning=FALSE}
 lichen_dat <- read.csv("Data/lichen.csv")
 sppcount_dat <- read.csv("Data/sppcount.csv")
-
 ```
 
 
@@ -56,52 +55,169 @@ sppcount_dat <- read.csv("Data/sppcount.csv")
 ## 1.1 Counts of numbers of aquatic invertebrate species
 Aquatic invertebrates provide very useful bioindicators of river systems. A pollution event might be short-lived, and pollutants in the water only detectable for a few days after a spillage. However the effects on the aquatic invertebrates can be detectable for days, weeks or months. They are used by the UK's Environment Agency, Defra, Scottish, Welsh and NI governments to assess aquatic pollution through a system known as RIVPACS [see their website here for more details](https://www.ceh.ac.uk/services/rivpacs-reference-database).
 
-#### Summary Statistics 
-
-It is always good to start by observing the data and running some summary statistics. 
+## 1.2 Summary Statistics and visualisation of aquatic invertebrate data
+It is always good to start by observing the data and running some summary statistics. The data are are two columns of data, recording both the numbers of aquatic invertebrate species, and the water pollution levels, at 30 rivers.
 
 ```{r echo=TRUE, include=TRUE}
+# Check the top of your data, and overall summary
+head(sppcount_dat)
 summary(sppcount_dat)
-
-sd(~species, data = sppcount_dat)
-
-sd(~pollution, data = sppcount_dat)
-
-#Visualise
-
-gf_point(pollution~species, data = sppcount_dat) %>% 
-  gf_lm() %>% 
-  gf_theme(theme_minimal())
-
-```
-
-The plot above shows a clear link between species abundance and the amount of pollution present but visualising it is not enough we need to back up our hypothesis with statistical analysis.  
-
-It is also a good habit to examine the data structurally as well as statistically to see how variables are laid out and what format they are in. The `summary()` command outlines the data into very basic statistics such as **mean**, **median**, **1st and 3rd quartiles** and **min and max**. The `str()` command displays what type of variables there (ie numeric, character or factor) and how they are stored (ie vector or data frame). In the following example the data is in two different categories **num** which is the class used for nonwhole nubmers and **int** which is teh class used for interger or whole numbers.  
-```{r echo=TRUE, include=TRUE}
 str(sppcount_dat)
+```
+
+After looking at the data, what do you think is the response and what is the explanatory variable? **Hint**: think about "cause" and "effect". When plotting your data, what would go on your x-axis, and which variable on your y-axis. Notice also that the `str()` function which returns the "structure" of the data, records `pollution` as numeric (`num`) and species as integer (`int`). An integer is a whole number, i.e. 6, 8, 12 with no decimal points.
+
+```{r}
+mean(~pollution, data=sppcount_dat) # Overall average pollution
+mean(~species, data=sppcount_dat)   # Overall average number of species at all the rivers
+sd(~species, data = sppcount_dat)   # Overall standard deviation of the species number
+sd(~pollution, data = sppcount_dat) # Overall standard deviation of the pollution
+```
+
+Notice that in the above commands we are calculating the overall mean and sd for species count and pollution. Thus the format of the call can be `mean(~pollution, data=sppcount_dat)`. Why might `mean(species ~ pollution, data=sppcount_dat)` **not** be appropriate to work out the average number of species at each pollution level? **Hint:** Is pollution a continuous or categorical explanatory variable? Try the command and see what you get.
+
+Now let's visualise the data. Recall your graph-plotting skills from the previous practicals, and try and create a scatter plot similar to the following:
+
+**Hints**
+
+* Build up your scatter plot one line at a time, with `gf_point()` the first line, with the correct formula and dataset specified. Make sure in your formula you have the response (left-hand side of `~` symbol) and explanatory variable the right way round.
+* Use the `%>%` or "THEN" symbol at the end of the first and subsequent lines before adding new ones
+* On your second line, refine your labels with `gf_labs()`
+* On your third line, add a fitted linear model line using `gf_lm()`. The plot below also includes the 95% confidence intervals for this fitted line. Use `?gf_lm` to read the help page to work out how to use the `interval` option to the function
+* finally `gf_refine()` to refine your graph using a different theme such as `theme_bw()` or as here `theme_classic()`
+
+
+```{r, echo=FALSE}
+#Visualise with scatter points
+
+gf_point(species~pollution, data = sppcount_dat) %>% 
+  gf_labs(x = "Aquatic pollution level (mg/l)", y="Number of invertebrate species") %>% 
+  gf_lm(interval = "confidence") %>% 
+  gf_theme(theme_classic())
 
 ```
 
-#### GLMs
+The plot above shows a clear link between the total number of aquatic invertebrate species and the amount of pollution present in the water. Visualisation is insufficient to test our (null) hypothesis that there about relationships between pollution and number of species. We need a formal statistical model. We will begin by doing it the "wrong" way with a linear model, and diagnose what is incorrect. **Note**: Look carrefully at the graph you have just created, and you might already be able to detect a potential problem. What is it?
 
-As your response data (species) are count variables, where no fractional values are possible, we will use a "Poisson"" error model in this GLM.  
+## 1.3 Incorrect analysis via linear model
+For the linear model we simply set our count of the number of species as the response, and pollution level as the explanatory in the usual way. Go ahead and store the results of your `lm()` call in an R object called `sppcount_lm`, and produce a summary of the results. Check that you get the following:
+
+
+```{r, echo=FALSE}
+sppcount_lm <- lm(species ~ pollution, data=sppcount_dat)
+```
+  
+```{r echo=FALSE}
+summary(sppcount_lm)
+
+```
+
+As you would expect, the model is highly significant, with a negative (significant) gradient for slope of -2.57, in other words for every 1 mg/l increase in pollution there is a decline in the number of species by about 2.57. When there is no pollution the number of species is about 29, which matches the graph you have just plotted above, when the horizontal axis of pollution is at zero.  There are two major problems however, the second of which you may already have spotted:
+
+### 1.3.1 Have model assumptions been broken?
+You will recall that linear models assume your data (or more precisely, the noise or errors around your fitted line) come from a normal or Gaussian distribution. The easiest way to check this is via a QQ plot:
+
+```{r}
+sppcount_lm_resid <- residuals(sppcount_lm)
+
+gf_qq(~sppcount_lm_resid) %>% 
+  gf_qqline()
+
+```
+
+There seems to be a strong S-bend in the QQ plot, hinting that there might be problems with the model and its assumptions are not satisfied.
+
+### 1.3.1 What are the predicted numbers of species in heavily polluted rivers?
+Hopefully you have already detected that this is a fundamental problem, simply by looking at your original graph of the data, with the straight line of the number of species added. What, for example, is the predicted number of species when water pollution is at 12 mg/l ?  Let's work it out:
+
+
+```{r}
+# Create a predictor function
+lm_species_predictor <- makeFun(sppcount_lm)
+
+# Obtain predicted value at 12 mg/l
+lm_species_predictor(12)
+
+```
+
+Uh oh! We seem to be predicting a **negative** number of species, but we know that this is biological nonsense. The minimum value we should get is zero.
+
+## 1.4 GLM and Simeon Poisson to the rescue...
+GLMs are much more flexible, and we can use them to produce a much better and biologically meaningful model. Simeon Poisson was an early 19th Century French mathematician devised a distribution that handled count rather than continuous data. See [This interactive website](https://naturalandenvironmentalscience.shinyapps.io/generalised_linear_models/#section-poisson-and-binomial-distributions) to view the Poisson distribution. When the website loads, the distribution initially looks like a normal distribution, but with whole numbers. It has one parameter $\lambda$ (Greek letter lambda). Move the slider. You will notice that the distribution never contains values less than zero.
+
+Let's now change from a linear model to a generalised linear model. If we simply replace `lm()` with `glm()` we will actually get the same results as before, because it defaults to using a normal distribution. However, if we use the `family` option we can specify that we want a Poisson distribution. Try the following and check your results match:
+
 
 ```{r echo=TRUE, include=TRUE}
-spp_glm <- glm(species ~ pollution, data = sppcount_dat, family = poisson)
-summary(spp_glm)
+sppcount_glm <- glm(species ~ pollution, data = sppcount_dat, family = poisson)
+summary(sppcount_glm)
 
 ```
+
+You can see that both the intercept and the (gradient) for pollution are highly significant. You will also notice that the wording and column headings are slightly different from your linear model. Linear models use a technique known as "least squares" to estimate parameters, whereas generalised linear models use a method called "maximum likelihood", so the underlying mathematics differ.
 
 So now what does this all mean. 
 
-- The **deviance residuals** are the deviance of each data point. The model calculates the deviation of the data point and the value left is your residuals.
-- The **coefficients** are your **covariate** variables (ie pollution). You may notice that there are two coefficients when our model only specified one. The intercept is the predicted values when your independent variable (species) is zero. The **estimate** is the estimated log value in the change of your response variable (pollution) if your covariate (pollution) were one unit higher. The estimate for the intercept is the estimate log value of species if pollution were 0. The **std error** is the variation around the mean, and the **z value** is the `estimate/std error`. Lastly, the **p value** is the measure of significance. The lower the p value, the more significant the result. The `***` proceeding the p value is a visual indicator of significance, and the key for those significant codes is just below the coefficients.
-- The **residual deviance** is a measure of how good your model is. If your residual deviance value is close to zero, then the model is oversaturated and not very good. 
-- The **AIC** value is used when comparing two similar models, the lower the AIC, the better the model.
-- Finally, the **Fisher score** is a measure of how many iterations of the model R ran looking at different estimates before displaying the results. 
+* **deviance** is the term used for variation in your data points
+* The **deviance residuals** line gives a summary of the min, max, mean of all this variation after the model has been fitted, in other words a summary of the noise for all 30 rivers.
+* The **coefficients** are your **explanatory** variables (i.e. pollution). You may notice that there are two coefficients when our model only specified one.
 
-From the results of the GLM, we can see that our original theory gathered from the plot was correct. There is a distinct significant relationship between species count and the amount of pollution present in a system. the fact that the **p value** is <0.001 means that the relationship is highly significant. The fact that both the **z value** and **estimate** are negative tells us that the relationship between the response variable and covariate is a negative one or in this case that as pollution levels rise species count will fall. 
+ - `(Intercept)` As usual, this is the predicted number of species when your explanatory variable (pollution) is zero. Here the estimated value for this is 3.43, which seems very low, but keep reading.
+ - `pollution` this is the change in your number of species with increasing pollution, which is negative, reflecting a decline in biodiversity with pollution. However, the value of -0.139 probably seems a bit odd
+- instead of t-statistics, maximum likelihood methods such as GLM produce z-statistics, which can be interpreted in a similar way to produce p-values. Both p-values are extremely low. Remember that `7.79-e13` is shorthand for `0.000000000000779` which you would write as `p<0.001` in a report.
+
+* The **residual deviance** is a measure of how good your model is. If your residual deviance value is close to zero, then the model is not very good. 
+* The **AIC** value is used when comparing two similar models, the lower the AIC, the better the model.
+* Finally, the **Fisher score** is a measure of how many iterations of the model R ran looking at different estimates before displaying the results. 
+
+There is a lot of information in the output and it is easy to get overwhelmed. The main things to note are the `Estimate` values, and when you report them in a table you would typically quote their associated z and p statistics, along with the overall AIC.
+
+#### What about the strange Estimates from the GLM?
+As we noted above, the values of 3.43 and -0.139 do not quite match what was expected. Indeed, looking at your original graph, an estimated number of species of only 3.43 when the water is unpolluted (x-axis at zero) does not match your graph where it looks to be around 29 or 30 species! This is because GLMs use what is known as a "link function" in their calculations; if you are interested see the [How to generalise page from the interactive website](https://naturalandenvironmentalscience.shinyapps.io/generalised_linear_models/#section-how-to-generalise). Poisson GLMs use natural logarithms as their link function, so we would need to take the antilog, or exponential, to get back to the original units. Let's check with the expected number of species when pollution is zero, i.e. the intercept:
+
+```{r}
+exp(3.43)
+```
+
+That looks more sensible. To finish off, we will check the model assumptions, predict the number of species when pollution is 12 mg/l and replot our original graph, but with a GLM rather than linear model.
+
+### 1.4.1 Check Poisson GLM model assumptions
+As before, create a QQ plot of the residuals. Copy, paste and edit your original `gf_qq()` and `gf_line()` code in your `Practical_4.R` script to save time typing. You should end up with a graph similar to this:
+
+```{r, echo=FALSE}
+sppcount_glm_resid <- residuals(sppcount_glm)
+
+gf_qq(~sppcount_glm_resid) %>% 
+  gf_qqline()
+```
+
+Although there is still a slight S-bend in the scatter of points, it is nothing like as severe a problem as we had with the linear model of the same data.
+
+### 1.4.2 What is the predicted number of species in heavily polluted streams with the GLM?
+With the linear model we had the problem that our model could predict negative numbers of species in polluted water. What do we get with the GLM? Modify your `makeFun()` call to create a new predictor function, and see if you get this value for 12 mg/l pollution?
+
+```{r, echo=FALSE}
+# Create a predictor function
+glm_species_predictor <- makeFun(sppcount_glm)
+
+# Obtain predicted value at 12 mg/l
+glm_species_predictor(12)
+
+```
+
+Although the biodiversity is obviously very low, it is still positive, which makes more sense.
+
+### 1.4.3 Modify scatterplot of original data to show Poisson GLM
+Our original scatter plot had a straight line from the `gf_lm()` function. Instead, we will add a curve from our GLM model, using `gf_smooth()`. This function has several methods for creating curves, and we specify that we used a GLM, with Poisson errors, and gives a smooth curve. **Build the following graph up slowly**, one line at a time, re-creating it each time, so you understand what each command does:
+
+```{r}
+gf_point(species ~ pollution, data=sppcount_dat) %>% 
+  gf_labs(x = "Aquatic pollution level (mg/l)", y="Number of invertebrate species") %>% 
+  gf_smooth(method="glm", method.args = list(family="poisson"), se=TRUE) %>% 
+  gf_refine(theme_classic())
+```
+
+
 
 ## GLMs with Binary Lichen Data
 
