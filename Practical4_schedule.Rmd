@@ -309,9 +309,25 @@ multi_plot(p3, p4, cols=2)
 
 Displaying your data this way gives you a much better insight into the relationships between the response variable of lichen, and explanatory of air pollution or calcium, whilst still adhering to the convention of placing your **response on the vertical** axis, and the **explanatory on the horizontal** axis.
 
-#### GLMs
+## 2.2 GLMs with binary response variable
+### 2.2.1 Interaction terms in linear models and generalised linear models
+Here we have two explanatory variables, calcium and air pollution. We cannot assume that they are independent in their effects, and they may **interact** in some way in terms of their impact on the presence or absence of lichens. You have already covered interaction terms in Practical 3, and remind yourself of how they work at [interactive website explaining interaction terms](https://naturalandenvironmentalscience.shinyapps.io/multiple_explan/#section-interactions-between-explanatory-variables)
 
-When a GLM contains a `:` in the covariates such as this `glm(response ~ covariate1 + covariate2 + covariate1:covariate2, data = data, family = family)` it means that the model will test to see if an interaction between the two variables is having a significant effect. If the data you are modelling contains more the just two possible covariates, you can use a `*` to test for all possible interactions such as this `glm(response ~ covariate1*covariate2*covariate3, data = data, family = family)`. This results in all covariate being examined individually but also as groups such as this (notice the three way interaction):
+When a GLM contains a `:` in the explanatory variables, such as
+
+`glm(response ~ explan1 + explan2 + explan1:explan2, data = data, family = family)`
+
+it means that the model will test to see if an interaction between the two variables is having a significant effect. It also tests the individual "main effects" of `explan` and `explan2`. There is also a shortcut for the above structure in that if you use `*` all the main effects and interactions will be tested. Thus:
+
+`glm(response ~ explan1 + explan2 + explan1:explan2, data = data, family = family)`
+
+and
+
+`glm(response ~ explan1*explan2, data = data, family = family)`
+
+are identical. The latter type of structure to call either linear or generalised linear models with interactions can save you having to type all the main effects separately, and is especially useful with e.g. 3 (or more) explanatory variables.
+
+This results in all covariate being examined individually but also as groups such as this (notice the three way interaction):
 
 |   -covariate1 results  
 |   -covariate2 results   
