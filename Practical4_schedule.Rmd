@@ -1,7 +1,9 @@
 ---
 title: 'Practical 4: Generalised Linear Models'
 author: "Bio2020"
-output: word_document
+output:
+  html_document:
+    df_print: paged
 ---
 # Introduction
 Generalised linear models (GLMs) are, as their name suggests, an extension of the standard linear model. They still work to the same framework of a response variable, and one or more explanatory variables. The difference is that they can be much more flexible in the type of response variable you are working with. In a conventional linear model it is assumed that your response variable can take any value, e.g. 4.65, 1.98, -4.32, 65.0, 9241.2 etc. These represent a "normal" distribution or bell-shaped curve; you will also see a normal distribution called a "Gaussian" distribution, after the German mathematician Carl Gauss who first described it. Of course in "real" biological data, some of these values would not make any sense. You might have:
@@ -24,7 +26,7 @@ The overall aim of this practical is to help you have a better understanding of 
 
 ## Setting up for the practical  
 
-First, go to Canvas and download the **lichen.csv** and **sppcount.csv** data sets and save them to your **Data** folder in the **BIO2020** folder where you have your R project stored.  
+First, go to Canvas and download the **lichen.csv**,  **sppcount.csv** and **beetle.csv** data sets and save them to your **Data** folder in the **BIO2020** folder where you have your R project stored.  
 
 Second, start RStudio, and click on **File -> Recent Projects** and select the BIO2020 project.
 
@@ -48,6 +50,7 @@ Now load in the two .csv files you downloaded from  Canvas. `lichen.csv` and `sp
 ```{r echo=TRUE,  message=FALSE, warning=FALSE}
 lichen_dat <- read.csv("Data/lichen.csv")
 sppcount_dat <- read.csv("Data/sppcount.csv")
+beetle_dat <- read.csv("Data/beetle.csv")
 ```
 
 
@@ -408,4 +411,64 @@ gf_jitter(lichen ~ calcium, data=lichen_dat, height=0.05) %>%
 ```
 
 Add additional R lines to change the overall plotting theme, modify the axis labels, and repeat for air pollution.
+
+Now use the `makeFun()` approach with `lichen_glm2` to predict the probability of lichens being present at a calcium level of 2, and air pollution of 5. **Remember** as you have two variables in your model, you will need to enter both variables into your `lichen_glm_predict()` command. You should obtain the following value. I have used the `round()` function to round to 4 decimal places:
+
+```{r, echo=FALSE}
+lichen_glm_predict <- makeFun(lichen_glm2)
+round(lichen_glm_predict(calcium=2, airpoll=5), 4)
+```
+
+
+# 3. Binomial GLMs where the sample size varies
+## 3.1 Sample sizes in binomial GLMs
+The lichen example had a sample size of one, in that one record (presence or absence of lichen) was available at each site. However, if you look at the [interactive description of binomial distributions](https://naturalandenvironmentalscience.shinyapps.io/generalised_linear_models/#section-poisson-and-binomial-distributions) you can see that we can we can in fact vary the sample size. Initially on the website it is set a 1, but you can change this and see what happens.
+
+We can take this extra information into account when doing the analyses. The `beetle_dat` dataset you imported at the start shows the numbers of flour beetles that are killed with different does of the insecticide carbon disulphide (mg/l). View the data using the usual R commands to get an understanding of it. It is no surpise to see that the mortality rate increases with pesticide dose. The `Mortality_rate` has been calculated as `Number_killed` divided by `Number_tested`. See if you can create a plot similar to the following:
+
+```{r}
+gf_point(Mortality_rate ~ Dose, data = beetle_dat) %>% 
+  gf_labs(x="Carbon disulphide concentration (mg/l)", y="Mortality rate") %>% 
+  gf_refine(theme_classic())
+```
+
+Whilst it might be tempting to try and fit a curve immediately to these mortality rates, you actually have more information at your disposal: the sample size (`Number_tested`). If the sample size is big then any estimated mortality derived from it is likely to be more reliable, compared to a smaller sample size. You can see from the raw table of data in `beetle_dat` that your smallest sample size (49) received the lowest dose of insecticide, whilst the largest (63) received an intermediate dose. You can take this information into account to improve your GLM.
+
+## 3.2 How to include sample size in your GLM
+R expects to receive **two** columns in your response variable, one the number of beetles that died, the other the number that survived. We don't actually have that second column, but we can easily calculate it and include it in your `beetle_dat` table. Remember that the `$` is used to allow you to reference individual columns of the table of data:
+
+```{r}
+beetle_dat$Number_alive <- beetle_dat$Number_tested - beetle_dat$Number_killed
+beetle_dat
+```
+
+You can now bind the two columns of `Number_killed` and `Number_alive` together using the `cbind()` function, and present this as your response variable to the `glm()` function:
+
+```{r}
+beetle_glm <- glm(cbind(Number_killed, Number_alive) ~ Dose, family=binomial, data=beetle_dat)
+summary(beetle_glm)
+
+```
+
+The output shows, as expected, a highly significant effect of the pesticide on the survivorship of the beetles. Again, you might be puzzled by the `-14.578` value for the Intercept, which is the mortality at zero dose of insecticide. This is because binomial GLMs use the "logit" link function which are natural logarithms of the odds of success to failure. This can be calculated manually (which is a bit tricky) so it is much easier to use the `makeFun()` approach:
+
+```{r}
+beetle_glm_predict <- makeFun(beetle_glm)
+beetle_glm_predict(0)
+```
+
+Remember that when you see 4.664753e-07 it is 0.0000004664753, so the mortality rate at zero pesticide is, as expected, negligible.
+
+## 3.3 Plotting GLM results when sample size varies
+The default `gf_smooth()` assumes the sample size is the same for every point. So the best approach is to predict your mortality rate using the `beetle_glm_predict()` function for the `Dose` in your dataset, and then base your smoothed curve on that. You have to specify in your `gf_smooth()` function that you are using these predicted values. You may get a warning about non-integer values, but ignore this.
+
+```{r, warning=FALSE}
+# Add a column with predicted mortality, weighted by sample size
+beetle_dat$Predicted_mortality <- beetle_glm_predict(beetle_dat$Dose)
+beetle_dat
+
+# Plot graph. You need to include the equation for gf_smooth as it uses predicted values
+gf_point(Mortality_rate ~ Dose, data=beetle_dat) %>% 
+  gf_smooth(Predicted_mortality ~ Dose, data=beetle_dat, method="glm", method.args = list(family="binomial"))
+```
 
