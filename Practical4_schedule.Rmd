@@ -173,13 +173,13 @@ So now what does this all mean.
 There is a lot of information in the output and it is easy to get overwhelmed. The main things to note are the `Estimate` values, and when you report them in a table you would typically quote their associated z and p statistics, along with the overall AIC.
 
 #### What about the strange Estimates from the GLM?
-As we noted above, the values of 3.43 and -0.139 do not quite match what was expected. Indeed, looking at your original graph, an estimated number of species of only 3.43 when the water is unpolluted (x-axis at zero) does not match your graph where it looks to be around 29 or 30 species! This is because GLMs use what is known as a "link function" in their calculations; if you are interested see the [How to generalise page from the interactive website](https://naturalandenvironmentalscience.shinyapps.io/generalised_linear_models/#section-how-to-generalise). Poisson GLMs use natural logarithms as their link function, so we would need to take the antilog, or exponential, to get back to the original units. Let's check with the expected number of species when pollution is zero, i.e. the intercept:
+As we noted above, the values of 3.43 and -0.139 do not quite match what was expected. Indeed, looking at your original graph, an estimated number of species of only 3.43 when the water is unpolluted (x-axis at zero) does not match your graph where it looks to be around 29 or 30 species! This is because GLMs use what is known as a "link function" in their calculations; if you are interested see the [How to generalise page from the interactive website](https://naturalandenvironmentalscience.shinyapps.io/generalised_linear_models/#section-how-to-generalise). Poisson GLMs use natural logarithms as their link function, so we would need to take the antilogarithm to get back to the original units. As these are natural logarithms, (i.e. $log_e$ rather than $log_{10}$) we need to take the exponential to convert to the original units, available through the `exp()` function. Let's check with the expected number of species when pollution is zero, i.e. the intercept:
 
 ```{r}
 exp(3.43)
 ```
 
-That looks more sensible. To finish off, we will check the model assumptions, predict the number of species when pollution is 12 mg/l and replot our original graph, but with a GLM rather than linear model.
+That looks more sensible based on our original scatterplot of the data. To finish off, we will check the model assumptions, predict the number of species when pollution is 12 mg/l and replot our original graph, but with a GLM rather than linear model.
 
 ### 1.4.1 Check Poisson GLM model assumptions
 As before, create a QQ plot of the residuals. Copy, paste and edit your original `gf_qq()` and `gf_line()` code in your `Practical_4.R` script to save time typing. You should end up with a graph similar to this:
@@ -194,7 +194,7 @@ gf_qq(~sppcount_glm_resid) %>%
 Although there is still a slight S-bend in the scatter of points, it is nothing like as severe a problem as we had with the linear model of the same data.
 
 ### 1.4.2 What is the predicted number of species in heavily polluted streams with the GLM?
-With the linear model we had the problem that our model could predict negative numbers of species in polluted water. What do we get with the GLM? Modify your `makeFun()` call to create a new predictor function, and see if you get this value for 12 mg/l pollution?
+With the linear model we had the problem that our model could predict negative numbers of species in polluted water. What do we get with the GLM? Modify your `makeFun()` call to create a new `glm_species_predictor()` function, and see if you get this value for 12 mg/l pollution?
 
 ```{r, echo=FALSE}
 # Create a predictor function
@@ -205,7 +205,7 @@ glm_species_predictor(12)
 
 ```
 
-Although the biodiversity is obviously very low, it is still positive, which makes more sense.
+The biodiversity is obviously very low, but it is still positive, which makes more sense than the negative number of species estimated by the incorrect linear model for 12 mg/l pollution we used in Section 1.3.
 
 ### 1.4.3 Modify scatterplot of original data to show Poisson GLM
 Our original scatter plot had a straight line from the `gf_lm()` function. Instead, we will add a curve from our GLM model, using `gf_smooth()`. This function has several methods for creating curves, and we specify that we used a GLM, with Poisson errors, and gives a smooth curve. **Build the following graph up slowly**, one line at a time, re-creating it each time, so you understand what each command does:
@@ -258,7 +258,9 @@ lichen_plt2 <- gf_point(lichen ~ airpoll, data=lichen_dat)
 multi_plot(lichen_plt1, lichen_plt2, cols=2)
 ```
 
-The problem with these two plots is whilst you can see that there appears to be more lichens when at higher calcium and lower air pollution, the plots are actually of limited value for exploratory data visualisation. Boxplots or violinplots would be more useful. Of course, by default they place the categorical explanatory variable on the horizontal axis, and the continuous response variable on the vertical axis. We can get round this problem by flipping our boxplots or violin plots through 90-degrees, so that the lichens still appear on the vertical axis, as we would expect for a response variable. We can do this with the `coord_flip()` option to `gf_refine()`. Both boxplots and violinplots expect categorical variables (factors) so we will use `lichen_fct` in their call.
+The problem with these two plots is whilst you can see that there appears to be more lichens when at higher calcium and lower air pollution, the plots are actually of limited value for exploratory data visualisation. Boxplots or violinplots would be more useful. Of course, by default they place the categorical explanatory variable on the horizontal axis, and the continuous response variable on the vertical axis. But here **our response is categorical (presence or absence of lichen)**, so really we want lichen incidence on the vertical y-axis, and calcium or air pollution on the horizontal x-axis.
+
+We can get round this problem by flipping our boxplots or violin plots through 90-degrees, so that the lichens still appear on the vertical axis, as we would expect for a response variable. We can do this with the `coord_flip()` option to `gf_refine()`. Both boxplots and violinplots expect categorical variables (factors) so we will use `lichen_fct` in their call.
 
 Let's create a simple boxplot first to show the idea. As usual, build it up one line at a time:
 
@@ -286,20 +288,20 @@ gf_violin(airpoll~lichen_fct, data = lichen_dat, alpha = 0.3, fill = ~lichen_fct
 
 ```
 
-Once you have created the plots, try storing them in `lichen_plt3` and `lichen_plt4` objects, and display them side-by-side using `multi_plot()` (requires `bio2020` package):
+Once you have created the plots, try storing them in `lichen_plt3` and `lichen_plt4` objects, and display them side-by-side using `multi_plot()` (requires `bio2020` package; do not worry if not installed):
 
 ```{r, echo=FALSE}
 p3 <- gf_violin(calcium ~lichen_fct, data = lichen_dat, alpha = 0.3, fill = ~lichen_fct) %>% 
   gf_refine(coord_flip())  %>% 
   gf_sina() %>% 
-  gf_labs(x = "Lichen", y = "Calcium", title = "Lichen and Calcium") %>% 
+  gf_labs(x = "Lichen incidence", y = "Calcium", title = "Lichen and Calcium") %>% 
   gf_theme(theme_classic()) %>% 
   gf_theme(legend.position="none") 
 
 p4 <- gf_violin(airpoll~lichen_fct, data = lichen_dat, alpha = 0.3, fill = ~lichen_fct) %>% 
   gf_refine(coord_flip())  %>% 
   gf_sina() %>% 
-  gf_labs(x = "Lichen", y = "Air Pollution", title = "Lichen and Pollution") %>% 
+  gf_labs(x = "Lichen incidence", y = "Air Pollution", title = "Lichen and Pollution") %>% 
   gf_theme(theme_classic()) %>% 
   gf_theme(legend.position = "none")
 
@@ -327,17 +329,7 @@ and
 
 are identical. The latter type of structure to call either linear or generalised linear models with interactions can save you having to type all the main effects separately, and is especially useful with e.g. 3 (or more) explanatory variables.
 
-This results in all covariate being examined individually but also as groups such as this (notice the three way interaction):
-
-|   -covariate1 results  
-|   -covariate2 results   
-|   -covariate3 results  
-|   -covariate1:covariate2 results  
-|   -covariate1:covariate3 results  
-|   -covariate2:covariate3 results  
-|   -covariate1:covariate2:covariate3 results  
-
-We will begin by running a full model including, the interaction terms; however, these can be removed later if not necessary. Notice that the family for this model has been changed as we now have a binary response variable. 
+We will begin by running a full model including the interaction terms; however, these can be removed later if not necessary. Notice that the family for this model has been changed as we now have a binary response variable. The appropriate family to describe the error distribution when you have presence/absence data is the **binomial** distribution. Go to [interactive website](https://naturalandenvironmentalscience.shinyapps.io/generalised_linear_models/#section-poisson-and-binomial-distributions) to remind yourself of a binomial distribution. Your sample size here is 1 as there is only a single observation at each site as to whether lichen is present or absent.
 
 ```{r echo=TRUE, include=TRUE}
 
@@ -346,12 +338,74 @@ summary(lichen_glm1)
 
 ```
 
-If the model is **over-fitted or saturated**, it would not be a valid model as it would fit the data perfectly. You can easily see if this is the case by looking at the summary. If there are zero residual degrees of freedom, and the residual deviance is also zero (on your PC the zero may be expressed in exponential format due to rounding), then the model is oversaturated and not a good fit. The model is not overdispersed, but none of the predictors are significant. Next fit a simpler model, with only main effects and without the interaction term, and compare the two. 
+The output is very similar to the previous GLM, but here we have four parameters estimated, the intercept, the two "main effects" for air pollution and calcium, and the interaction term. You can see that all four are non-significant, so you might be tempted to assume there is nothing going on. However:
 
-```{r echo=TRUE, include=TRUE}
+* Think back to your violinplots (or boxplots) of the lichens and these environmental variables. These seem to suggest some sort of relationship.
+* Always look at the interaction term first. If it is non-significant, refit the model without the interaction term.
+
+### 2.2.2 Two ways to update your (linear or) generalised linear model
+When you have the results of a model with one or more interaction terms, the best strategy is to:
+
+* refit the model without the most complicated non-significant interaction term (here simply the `airpoll:calcium` term)
+* look at the `summary()` of the model
+* see if the simpler model is significantly different from the more complex one using `anova()`
+* repeat if needed
+
+There are actually two ways available to refit your model without the interaction term, and you can use both approaches for models fit with either `lm()` or `glm()`. The first is fairly obvious:
+
+```{r, eval=FALSE}
 lichen_glm2 <- glm(lichen ~ airpoll + calcium, data = lichen_dat, family = binomial)
 summary(lichen_glm2)
-
 ```
 
-Notice now that the main covariates are significant after removing the interaction term. Also, the **AIC** value is lower in the second model meaning this model is an improvement over the more complex one we ran earlier. What do the results of this simpler model tell you about lichen and its relationship with calcium and air pollution?
+The second "shorthand" method is useful if you start off with lots of interaction terms and gradually want to simplify your model, as it saves the amount you need to type. When you have 3 interaction terms you actually estimate lots of parameters:
+
+1. Intercept
+2. Explan1 (main effect)
+3. Explan2 (main effect)
+4. Explan3 (main effect)
+5. Explan1:Explan2 (2-way interaction)
+6. Explan1:Explan3 (2-way interaction)
+7. Explan2:Explan3 (2-way interaction)
+8. Explan1:Explan2:Explan3 (3-way interaction)
+
+The situation gets worse the more explanatory variables you have. So if you need to simplify your model, having to explicitly retype all the possible terms to keep can easily result in typing errors. Here it is not a major problem, as you only have one interaction term to worry about. The trick is to `update()` your original model, and remove the non-significant interaction term:
+
+```{r}
+lichen_glm2 <- update(lichen_glm1, . ~ . -airpoll:calcium)
+```
+
+The syntax of the `update()` function can be a little confusing, so let's break it down:
+
+* `lichen_glm1` this was our original "full" model, that we want to simplify
+* `. ~ .` This is the `response ~ explanatory` equation. You are probably wondering why the variable names are not specified. By simply putting a `.` symbol to the left and right of the `~` symbol, you are telling `update()` to begin with the same set of response and explanatory variables as are defined in `lichen_glm1`
+* `-airpoll:calcium`This now tells `update()` to **delete the interaction term** as it has a minus symbol in front of it.
+
+If you have a complex `lm()` or `glm()` model that would take you several attempts to simplify, the `update()` function can save on typing. Now check the results of the simplified GLM model:
+
+```{r, echo=FALSE}
+summary(lichen_glm2)
+```
+
+Notice now that the main effects for air pollution and calcium are significant after removing the interaction term. Also, the **AIC** value is lower in the second model meaning this model is an improvement over the more complex one we ran earlier. What do the results of this simpler model tell you about lichen and its relationship with calcium and air pollution?
+
+You might want to know if this simpler model is a significant improvement on the first, and you can use the `anova()` function to do this. As you know, by default `anova()` calculates "sums of squares", "mean squares" (old-fashioned name for variances) and "F-ratios" as part of the process of testing for significance to calculate a p-value. However, GLMs do not use mean squares, instead they use "maximum likelihood" to estimate parameters. Therefore we have to tell the `anova()` function to do a Chi-squared test to see if the two models are the same:
+
+```{r}
+anova(lichen_glm1, lichen_glm2, test="Chisq")
+```
+
+At first this is a bit confusing; it says there is no significant difference in the models! The way to interpret this is that the second, simpler model, is just as effective as the overly complicated one that contained the interaction term. The second model is simpler, has a lower AIC indicating it is better, and is just as effective, so is the one to use.
+
+### 2.2.3 Checking binomial model assumptions and making predictions
+It is actually quite difficult to interpret the residuals from a binomial model, because the response variable is binary. Therefore, whilst you can create a QQ plot, do not be surprised if the plot shows quite a big curve in it. Some people recommend the `binnedplot()` function from the `arm` R package, which we have not used in this course. If you wish, feel free to investigate it, but it is entirely optional.
+
+You can of course make a prediction from your model. First, let us produce a plot of the predicted probability of lichen at different calcium levels. To avoid the problem of all the points for presence or absence of lichen overlapping each other, we will use `gf_jitter()` instead of `gf_point()`. The `height` option controls how much "jitter" there is around the points. The `gf_smooth()` function is again used to add the fitted line, but now we have to specify that the `binomial` error family is used. As usual, build up the plot one line at a time, to see what happens, adding a `%>%` symbol at the end of the preceding line when you want to add a new one:
+
+```{r}
+gf_jitter(lichen ~ calcium, data=lichen_dat, height=0.05) %>% 
+  gf_smooth(method="glm", method.args = list(family="binomial"), se=TRUE)
+```
+
+Add additional R lines to change the overall plotting theme, modify the axis labels, and repeat for air pollution.
+
