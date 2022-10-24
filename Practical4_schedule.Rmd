@@ -1,9 +1,10 @@
 ---
 title: 'Practical 4: Generalised Linear Models'
-author: "Bio2020"
+author: "BIO2020"
 output:
   html_document:
     df_print: paged
+  word_document: default
 ---
 # Introduction
 Generalised linear models (GLMs) are, as their name suggests, an extension of the standard linear model. They still work to the same framework of a response variable, and one or more explanatory variables. The difference is that they can be much more flexible in the type of response variable you are working with. In a conventional linear model it is assumed that your response variable can take any value, e.g. 4.65, 1.98, -4.32, 65.0, 9241.2 etc. These represent a "normal" distribution or bell-shaped curve; you will also see a normal distribution called a "Gaussian" distribution, after the German mathematician Carl Gauss who first described it. Of course in "real" biological data, some of these values would not make any sense. You might have:
@@ -265,51 +266,19 @@ The problem with these two plots is whilst you can see that there appears to be 
 
 We can get round this problem by flipping our boxplots or violin plots through 90-degrees, so that the lichens still appear on the vertical axis, as we would expect for a response variable. We can do this with the `coord_flip()` option to `gf_refine()`. Both boxplots and violinplots expect categorical variables (factors) so we will use `lichen_fct` in their call.
 
-Let's create a simple boxplot first to show the idea. As usual, build it up one line at a time:
+Let's create a simple boxplot first to show the idea. We use the `lichen_fct` as the response, rather than `lichen` as we want a categorical variable (lichen presence or absence) in a boxplot. In previous boxplots your response has been continuous, and your explanatory categorical. However, here we put it the other way round, to reflect the biology:
 
 ```{r}
-gf_boxplot(calcium ~ lichen_fct, data=lichen_dat) %>% 
-  gf_refine(coord_flip())  # In reality, lichen is response, calcium the explanatory, so flip
+gf_boxplot(lichen_fct ~ calcium, data=lichen_dat) 
 ```
 
-To show you the level of information that can be displayed this way, including the original data points, let's create two violinplots. I've added `gf_theme(theme_classic())` to change the overall appearence. You don't really need a separate legend for this plot, as it is fairly obvious what the two groups are, so `legend.position="none"` has been included. All these polishes to the graph are entirely optional. All you really need are the first two lines `gf_violin()` and `gf_refine(coord_flip())`.
+Now create a similar boxplot, but showing the differences in lichen response to air pollution. You may wish to smarten up your plot to improve the axis titles etc. The `gf_jitter` function allows you to see the original data points:
 
-```{r, eval=FALSE}
-gf_violin(calcium ~lichen_fct, data = lichen_dat, alpha = 0.3, fill = ~lichen_fct) %>% 
-  gf_refine(coord_flip())  %>% 
-  gf_sina() %>% 
-  gf_labs(x = "Lichen", y = "Calcium", title = "Lichen and Calcium") %>% 
-  gf_theme(theme_classic()) %>% 
-  gf_theme(legend.position="none") 
-
-gf_violin(airpoll~lichen_fct, data = lichen_dat, alpha = 0.3, fill = ~lichen_fct) %>% 
-  gf_refine(coord_flip())  %>% 
-  gf_sina() %>% 
-  gf_labs(x = "Lichen", y = "Air Pollution", title = "Lichen and Pollution") %>% 
-  gf_theme(theme_classic()) %>% 
-  gf_theme(legend.position = "none")
-
-```
-
-Once you have created the plots, try storing them in `lichen_plt3` and `lichen_plt4` objects, and display them side-by-side using `multi_plot()` (requires `bio2020` package; do not worry if not installed):
-
-```{r, echo=FALSE}
-p3 <- gf_violin(calcium ~lichen_fct, data = lichen_dat, alpha = 0.3, fill = ~lichen_fct) %>% 
-  gf_refine(coord_flip())  %>% 
-  gf_sina() %>% 
-  gf_labs(x = "Lichen incidence", y = "Calcium", title = "Lichen and Calcium") %>% 
-  gf_theme(theme_classic()) %>% 
-  gf_theme(legend.position="none") 
-
-p4 <- gf_violin(airpoll~lichen_fct, data = lichen_dat, alpha = 0.3, fill = ~lichen_fct) %>% 
-  gf_refine(coord_flip())  %>% 
-  gf_sina() %>% 
-  gf_labs(x = "Lichen incidence", y = "Air Pollution", title = "Lichen and Pollution") %>% 
-  gf_theme(theme_classic()) %>% 
-  gf_theme(legend.position = "none")
-
-multi_plot(p3, p4, cols=2)
-
+```{r}
+gf_boxplot(lichen_fct ~ airpoll, data = lichen_dat) %>% 
+  gf_jitter() %>% 
+  gf_labs(x = "Air pollution", y = "Lichen incidence") %>% 
+  gf_theme(theme_classic()) 
 ```
 
 Displaying your data this way gives you a much better insight into the relationships between the response variable of lichen, and explanatory of air pollution or calcium, whilst still adhering to the convention of placing your **response on the vertical** axis, and the **explanatory on the horizontal** axis.
@@ -394,8 +363,11 @@ Notice now that the main effects for air pollution and calcium are significant a
 
 You might want to know if this simpler model is a significant improvement on the first, and you can use the `anova()` function to do this. As you know, by default `anova()` calculates "sums of squares", "mean squares" (old-fashioned name for variances) and "F-ratios" as part of the process of testing for significance to calculate a p-value. However, GLMs do not use mean squares, instead they use "maximum likelihood" to estimate parameters. Therefore we have to tell the `anova()` function to do a Chi-squared test to see if the two models are the same:
 
-```{r}
+`````{r, eval=FALSE}
 anova(lichen_glm1, lichen_glm2, test="Chisq")
+```
+```{r, echo=FALSE}
+print(anova(lichen_glm1, lichen_glm2, test="Chisq"))
 ```
 
 At first this is a bit confusing; it says there is no significant difference in the models! The way to interpret this is that the second, simpler model, is just as effective as the overly complicated one that contained the interaction term. The second model is simpler, has a lower AIC indicating it is better, and is just as effective, so is the one to use.
@@ -472,3 +444,5 @@ gf_point(Mortality_rate ~ Dose, data=beetle_dat) %>%
   gf_smooth(Predicted_mortality ~ Dose, data=beetle_dat, method="glm", method.args = list(family="binomial"))
 ```
 
+# Take-home messages
+Generalised linear models provide a simple extension to the linear models you've already been working with. They are much more flexible, and hence a little trickier to use initially. However, many types of biological or zoological data do not fit neatly into the expected format for a linear model, and GLMs will help you. In this practical we have only looked at Poisson and Binomial errors: there are many other types available if these are unsuitable.
